@@ -28,9 +28,13 @@ impl Widget for &LoseMenu {
         // Clear.render(area, buf);
 
         let lose_block = Block::bordered()
-            .set_style(Style::new().fg(Color::from_u32(0x00303030)))
-            .border_style(Style::new().fg(Color::White))
-            .border_type(BorderType::QuadrantInside)
+            .set_style(
+                Style::new()
+                    .fg(Color::from_u32(0x00303030))
+                    .bg(Color::Reset),
+            )
+            .border_style(Style::new().fg(Color::White).bg(Color::Reset))
+            // .border_type(BorderType::QuadrantInside)
             .title(" Oops! ")
             .title_alignment(Alignment::Center)
             .padding(Padding::proportional(1));
@@ -49,7 +53,7 @@ impl Widget for &LoseMenu {
         Line::from(Span::from("New Game").style(if !self.continue_select {
             Style::new().bg(Color::DarkGray).fg(Color::White)
         } else {
-            Style::default()
+            Style::default().fg(Color::White)
         }))
         .centered()
         .render(restart_area, buf);

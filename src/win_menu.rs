@@ -29,8 +29,12 @@ impl Widget for &WinMenu {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // Clear.render(area, buf);
         let win_block = Block::bordered()
-            .set_style(Style::new().fg(Color::from_u32(0x00303030)))
-            .border_style(Style::new().fg(Color::White))
+            .set_style(
+                Style::new()
+                    .fg(Color::from_u32(0x00303030))
+                    .bg(Color::Reset),
+            )
+            .border_style(Style::new().fg(Color::White).bg(Color::Reset))
             .border_type(Double)
             .padding(Padding::proportional(1))
             .title(" Congratulations! ")

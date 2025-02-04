@@ -111,6 +111,14 @@ impl App {
             Constraint::Length(self.board.height as u16 + 4),
         );
 
+        let area = frame.area();
+
+        self.option_menu
+            .state
+            .theme_data
+            .tile_bg
+            .inspect(|c| frame.buffer_mut().set_style(area, Style::new().bg(*c)));
+
         frame.render_widget(self, frame_area_centered);
 
         if self.state == GameState::Options {
@@ -236,53 +244,73 @@ impl App {
                 if (x, y) == self.cursor
                     && (self.state == GameState::Start || self.state == GameState::Play)
                 {
-                    span_vec.push(Self::ts_span_cursor(self.board.check(x, y)));
+                    span_vec.push(self.ts_span_cursor(self.board.check(x, y)));
                 } else {
-                    span_vec.push(Self::ts_span(self.board.check(x, y)));
+                    span_vec.push(self.ts_span(self.board.check(x, y)));
                 }
 
                 if x < self.board.width - 1 {
                     span_vec.push(Span::raw(" "));
                 }
             }
-            lines.push(Line::from(span_vec));
-            //.bg(Color::DarkGray)
+            if self.option_menu.state.theme_data.tile_bg.is_some() {
+                lines.push(
+                    Line::from(span_vec).bg(self.option_menu.state.theme_data.tile_bg.unwrap()),
+                );
+            } else {
+                lines.push(Line::from(span_vec));
+            }
         }
 
         lines
     }
 
-    fn ts_span_cursor(ts: TileState) -> Span<'static> {
+    fn ts_span_cursor(&self, ts: TileState) -> Span<'static> {
         match ts {
             minesweeper::TileState::Hidden => Span::styled(
                 "◼",
-                Style::default().fg(Color::Black).bg(Color::Indexed(190)),
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(self.option_menu.state.theme_data.cursor),
             ),
             minesweeper::TileState::Flagged => Span::styled(
                 "◄",
-                Style::default().fg(Color::Black).bg(Color::Indexed(190)),
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(self.option_menu.state.theme_data.cursor),
             ),
             minesweeper::TileState::Empty => Span::styled(
                 "·",
-                Style::default().fg(Color::Black).bg(Color::Indexed(190)),
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(self.option_menu.state.theme_data.cursor),
             ),
             minesweeper::TileState::Mine => {
                 Span::styled("◉", Style::default().fg(Color::Black).bg(Color::Red))
             }
             minesweeper::TileState::Count(n) => Span::styled(
                 n.to_string(),
-                Style::default().fg(Color::Black).bg(Color::Indexed(190)),
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(self.option_menu.state.theme_data.cursor),
             ),
         }
     }
 
-    fn ts_span(ts: TileState) -> Span<'static> {
+    fn ts_span(&self, ts: TileState) -> Span<'static> {
         match ts {
-            minesweeper::TileState::Hidden => Span::styled("◼", Style::default().fg(Color::Gray)),
-            minesweeper::TileState::Flagged => {
-                Span::styled("◄", Style::default().fg(Color::LightRed))
-            }
-            minesweeper::TileState::Empty => Span::styled("·", Style::default().fg(Color::Gray)),
+            minesweeper::TileState::Hidden => Span::styled(
+                "◼",
+                Style::default().fg(self.option_menu.state.theme_data.tile_fg),
+            ),
+            minesweeper::TileState::Flagged => Span::styled(
+                "◄",
+                Style::default().fg(self.option_menu.state.theme_data.flag),
+            ),
+            minesweeper::TileState::Empty => Span::styled(
+                "·",
+                Style::default().fg(self.option_menu.state.theme_data.tile_fg),
+            ),
             minesweeper::TileState::Mine => Span::styled("◉", Style::default().fg(Color::Red)),
             minesweeper::TileState::Count(n) => {
                 Span::styled(n.to_string(), Style::default().fg(number_colors(n)))
