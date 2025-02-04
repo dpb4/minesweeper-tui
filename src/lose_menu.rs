@@ -10,12 +10,13 @@ use ratatui::{
 #[derive(Debug, Clone, Default)]
 pub struct LoseMenu {
     pub continue_select: bool,
-    pub restart: Option<()>,
-    pub coward: Option<()>,
-    pub options: Option<()>,
-    pub quit: Option<()>,
+    pub restart: bool,
+    pub coward: bool,
+    pub options: bool,
+    pub quit: bool,
 }
 
+//TODO fix wronog colour for new game
 impl Widget for &LoseMenu {
     fn render(self, area: Rect, buf: &mut prelude::Buffer) {
         let layout = Layout::vertical([
@@ -74,14 +75,14 @@ impl LoseMenu {
     pub fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
             KeyCode::Up | KeyCode::Down => self.continue_select = !self.continue_select,
-            KeyCode::Char('q') | KeyCode::Char('Q') => self.quit = Some(()),
-            KeyCode::Char('o') | KeyCode::Char('O') => self.options = Some(()),
-            KeyCode::Char('r') | KeyCode::Char('R') => self.restart = Some(()),
+            KeyCode::Char('q') | KeyCode::Char('Q') => self.quit = true,
+            KeyCode::Char('o') | KeyCode::Char('O') => self.options = true,
+            KeyCode::Char('r') | KeyCode::Char('R') => self.restart = true,
             KeyCode::Char(' ') | KeyCode::Char('x') | KeyCode::Enter => {
                 if self.continue_select {
-                    self.coward = Some(())
+                    self.coward = true
                 } else {
-                    self.restart = Some(())
+                    self.restart = true
                 }
             }
             _ => {}

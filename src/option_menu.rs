@@ -23,9 +23,9 @@ pub struct OptionMenu {
 pub struct OptionState {
     pub board_size: SizeOption,
     pub difficulty: DifficultyOption,
-    pub restart: Option<()>,
-    pub resume: Option<()>,
-    pub exit: Option<()>,
+    pub restart: bool,
+    pub resume: bool,
+    pub quit: bool,
 }
 
 #[derive(EnumIter, PartialEq, Display, Debug, Clone, Default, FromPrimitive)]
@@ -46,9 +46,64 @@ pub enum DifficultyOption {
     Expert,
 }
 
-impl Widget for &OptionMenu {
-    // type State = OptionState;
+impl OptionMenu {
+    pub fn new(options: OptionState) -> Self {
+        Self {
+            cursor_line: 0,
+            state: options,
+        }
+    }
 
+    pub fn handle_key_event(&mut self, key_event: KeyEvent) {
+        match key_event.code {
+            KeyCode::Left => match self.cursor_line {
+                0 => {
+                    self.state.board_size =
+                        FromPrimitive::from_u32((self.state.board_size.clone() as u32 + 3) % 4)
+                            .unwrap()
+                }
+                1 => {
+                    self.state.difficulty =
+                        FromPrimitive::from_u32((self.state.difficulty.clone() as u32 + 3) % 4)
+                            .unwrap()
+                }
+                _ => (),
+            },
+            KeyCode::Right => match self.cursor_line {
+                0 => {
+                    self.state.board_size =
+                        FromPrimitive::from_u32((self.state.board_size.clone() as u32 + 1) % 4)
+                            .unwrap()
+                }
+                1 => {
+                    self.state.difficulty =
+                        FromPrimitive::from_u32((self.state.difficulty.clone() as u32 + 1) % 4)
+                            .unwrap()
+                }
+                _ => (),
+            },
+            KeyCode::Up => self.cursor_line = self.cursor_line.saturating_sub(1),
+            KeyCode::Down => self.cursor_line = min(self.cursor_line + 1, 3),
+            KeyCode::Char('q') | KeyCode::Char('Q') => self.state.quit = true,
+            KeyCode::Char('o') | KeyCode::Char('O') | KeyCode::Char('c') | KeyCode::Char('C') => {
+                self.state.resume = true
+            }
+            KeyCode::Char('r') | KeyCode::Char('R') => self.state.restart = true,
+            KeyCode::Char(' ') | KeyCode::Char('x') | KeyCode::Enter => match self.cursor_line {
+                2 => {
+                    self.state.restart = true;
+                }
+                3 => {
+                    self.state.resume = true;
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+}
+
+impl Widget for &OptionMenu {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let layout = Layout::vertical([
             Constraint::Length(1),
@@ -123,8 +178,6 @@ impl<T: Default> SingleSelector<T> {
 }
 
 impl<T: IntoEnumIterator + Display + PartialEq + FromPrimitive> Widget for SingleSelector<T> {
-    // type State = T;
-
     fn render(self, area: Rect, buf: &mut Buffer) {
         if self.highlight {
             Clear.render(area, buf);
@@ -137,7 +190,7 @@ impl<T: IntoEnumIterator + Display + PartialEq + FromPrimitive> Widget for Singl
             Constraint::Length(self.label.len() as u16),
             Constraint::Fill(1),
         ];
-        // let layout = Layout::horizontal([, Constraint::]);
+
         for i in T::iter() {
             constraints.push(Constraint::Length(i.to_string().len() as u16 + 2));
         }
@@ -162,63 +215,6 @@ impl<T: IntoEnumIterator + Display + PartialEq + FromPrimitive> Widget for Singl
                 })
                 .render(areas[count], buf);
             count += 1;
-        }
-    }
-}
-
-impl OptionMenu {
-    pub fn new(options: OptionState) -> Self {
-        Self {
-            cursor_line: 0,
-            state: options,
-        }
-    }
-
-    pub fn handle_key_event(&mut self, key_event: KeyEvent) {
-        match key_event.code {
-            KeyCode::Left => match self.cursor_line {
-                0 => {
-                    self.state.board_size =
-                        FromPrimitive::from_u32((self.state.board_size.clone() as u32 + 3) % 4)
-                            .unwrap()
-                }
-                1 => {
-                    self.state.difficulty =
-                        FromPrimitive::from_u32((self.state.difficulty.clone() as u32 + 3) % 4)
-                            .unwrap()
-                }
-                _ => (),
-            },
-            KeyCode::Right => match self.cursor_line {
-                0 => {
-                    self.state.board_size =
-                        FromPrimitive::from_u32((self.state.board_size.clone() as u32 + 1) % 4)
-                            .unwrap()
-                }
-                1 => {
-                    self.state.difficulty =
-                        FromPrimitive::from_u32((self.state.difficulty.clone() as u32 + 1) % 4)
-                            .unwrap()
-                }
-                _ => (),
-            },
-            KeyCode::Up => self.cursor_line = self.cursor_line.saturating_sub(1),
-            KeyCode::Down => self.cursor_line = min(self.cursor_line + 1, 3),
-            KeyCode::Char('q') | KeyCode::Char('Q') => self.state.exit = Some(()),
-            KeyCode::Char('o') | KeyCode::Char('O') | KeyCode::Char('c') | KeyCode::Char('C') => {
-                self.state.resume = Some(())
-            }
-            KeyCode::Char('r') | KeyCode::Char('R') => self.state.restart = Some(()),
-            KeyCode::Char(' ') | KeyCode::Char('x') | KeyCode::Enter => match self.cursor_line {
-                2 => {
-                    self.state.restart = Some(());
-                }
-                3 => {
-                    self.state.resume = Some(());
-                }
-                _ => {}
-            },
-            _ => {}
         }
     }
 }

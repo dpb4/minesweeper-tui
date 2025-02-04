@@ -82,11 +82,10 @@ impl Default for Board {
 
 const SAFETY_RADIUS: i32 = 2;
 
-// TODO REFACTOR
 impl Board {
     pub fn new(width: usize, height: usize, mine_count: u32) -> Self {
         Self {
-            grid: Self::generate_grid(width, height, mine_count),
+            grid: vec![vec![Tile::new(false); width]; height],
             width,
             height,
             mine_count,
@@ -95,7 +94,7 @@ impl Board {
     }
 
     pub fn first_dig(&mut self, x: usize, y: usize) {
-        self.grid = Self::generate_grid_safe(self.width, self.height, self.mine_count, x, y);
+        self.grid = self.generate_grid_safe(self.width, self.height, self.mine_count, x, y);
         let _ = self.dig(x, y);
     }
 
@@ -103,6 +102,7 @@ impl Board {
         if self.grid[y][x].flag {
             return Ok(());
         }
+
         if !self.grid[y][x].mine && self.grid[y][x].count == 0 {
             self.flood_dig(x, y);
         } else if self.grid[y][x].hidden {
@@ -117,23 +117,21 @@ impl Board {
         Ok(())
     }
 
-    pub fn undo(&mut self, x: usize, y: usize) {
-        let ix = x as i8;
-        let iy = y as i8;
+    fn in_bounds(&self, x: i8, y: i8) -> bool {
+        x >= 0 && x < (self.width as i8) && y >= 0 && y < (self.height as i8)
+    }
 
+    pub fn undo(&mut self, x: usize, y: usize) {
+        let [ix, iy] = [x as i8, y as i8];
         let dirs = [-1, 0, 1];
 
         for dx in dirs {
             for dy in dirs {
-                if ix + dx >= 0
-                    && ix + dx < (self.width as i8)
-                    && iy + dy >= 0
-                    && iy + dy < (self.height as i8)
-                {
-                    if !self.grid[(iy + dy) as usize][(ix + dx) as usize].hidden
-                        && self.grid[(iy + dy) as usize][(ix + dx) as usize].mine
-                    {
-                        self.grid[(iy + dy) as usize][(ix + dx) as usize].hidden = true;
+                if self.in_bounds(ix + dx, iy + dy) {
+                    let tile = &mut self.grid[(iy + dy) as usize][(ix + dx) as usize];
+
+                    if !tile.hidden && tile.mine {
+                        tile.hidden = true;
                     }
                 }
             }
@@ -172,51 +170,36 @@ impl Board {
             return false;
         }
 
-        let ix = x as i8;
-        let iy = y as i8;
-
+        let mut count = 0;
+        let [ix, iy] = [x as i8, y as i8];
         let dirs = [-1, 0, 1];
-        let mut flag_count = 0;
 
         for dx in dirs {
             for dy in dirs {
-                if !(dx == 0 && dy == 0) {
-                    if ix + dx >= 0
-                        && ix + dx < (self.width as i8)
-                        && iy + dy >= 0
-                        && iy + dy < (self.height as i8)
-                    {
-                        if self.grid[(iy + dy) as usize][(ix + dx) as usize].flag
-                            && self.grid[(iy + dy) as usize][(ix + dx) as usize].hidden
-                        {
-                            flag_count += 1;
-                        }
+                if !(dx == 0 && dy == 0) && self.in_bounds(ix + dx, iy + dy) {
+                    let tile = &self.grid[(iy + dy) as usize][(ix + dx) as usize];
+
+                    if tile.hidden && tile.flag {
+                        count += 1;
                     }
                 }
             }
         }
 
-        self.grid[y][x].count == flag_count
+        self.grid[y][x].count == count
     }
 
     fn smart_clear(&mut self, x: usize, y: usize) -> Result<(), ()> {
-        let ix = x as i8;
-        let iy = y as i8;
-
+        let [ix, iy] = [x as i8, y as i8];
         let dirs = [-1, 0, 1];
+
         for dx in dirs {
             for dy in dirs {
-                if !(dx == 0 && dy == 0) {
-                    if ix + dx >= 0
-                        && ix + dx < (self.width as i8)
-                        && iy + dy >= 0
-                        && iy + dy < (self.height as i8)
-                    {
-                        if self.grid[(iy + dy) as usize][(ix + dx) as usize].hidden
-                            && !self.grid[(iy + dy) as usize][(ix + dx) as usize].flag
-                        {
-                            self.dig((ix + dx) as usize, (iy + dy) as usize)?;
-                        }
+                if !(dx == 0 && dy == 0) && self.in_bounds(ix + dx, iy + dy) {
+                    let tile = &self.grid[(iy + dy) as usize][(ix + dx) as usize];
+
+                    if tile.hidden && !tile.flag {
+                        self.dig((ix + dx) as usize, (iy + dy) as usize)?;
                     }
                 }
             }
@@ -226,51 +209,28 @@ impl Board {
     }
 
     fn flood_dig(&mut self, x: usize, y: usize) {
-        if self.grid[y][x].count != 0 || !self.grid[y][x].hidden && !self.grid[y][x].mine {
-            self.grid[y][x].hidden = false;
+        let tile = &mut self.grid[y][x];
+
+        if tile.count != 0 || !tile.hidden && !tile.mine {
+            tile.hidden = false;
             return;
         }
-        self.grid[y][x].hidden = false;
+        tile.hidden = false;
 
-        let ix = x as i8;
-        let iy = y as i8;
-
+        let [ix, iy] = [x as i8, y as i8];
         let dirs = [-1, 0, 1];
 
         for dx in dirs {
             for dy in dirs {
-                if !(dx == 0 && dy == 0)
-                    && ix + dx >= 0
-                    && ix + dx < (self.width as i8)
-                    && iy + dy >= 0
-                    && iy + dy < (self.height as i8)
-                {
+                if !(dx == 0 && dy == 0) && self.in_bounds(ix + dx, iy + dy) {
                     self.flood_dig((ix + dx) as usize, (iy + dy) as usize);
                 }
             }
         }
     }
 
-    fn generate_grid(width: usize, height: usize, mine_count: u32) -> Vec<Vec<Tile>> {
-        let mut grid = vec![vec![Tile::new(false); width]; height];
-
-        for _ in 0..mine_count {
-            let mut x = ((rand::random::<f32>() * width as f32) as usize).clamp(0, width - 1);
-            let mut y = ((rand::random::<f32>() * height as f32) as usize).clamp(0, height - 1);
-
-            while grid[y][x].mine {
-                x = (rand::random::<f32>() * width as f32) as usize;
-                y = (rand::random::<f32>() * height as f32) as usize;
-            }
-
-            grid[y][x] = Tile::new(true);
-        }
-
-        Self::count_mines(&mut grid, width, height);
-        return grid;
-    }
-
     fn generate_grid_safe(
+        &self,
         width: usize,
         height: usize,
         mine_count: u32,
@@ -291,7 +251,7 @@ impl Board {
             grid[y][x] = Tile::new(true);
         }
 
-        Self::count_mines(&mut grid, width, height);
+        self.count_mines(&mut grid, width, height);
         return grid;
     }
 
@@ -301,30 +261,23 @@ impl Board {
         dx * dx + dy * dy <= SAFETY_RADIUS * SAFETY_RADIUS
     }
 
-    fn count_mines(grid: &mut Vec<Vec<Tile>>, width: usize, height: usize) {
+    fn count_mines(&self, grid: &mut Vec<Vec<Tile>>, width: usize, height: usize) {
         for y in 0..height {
             for x in 0..width {
                 if grid[y][x].mine {
                     continue;
                 }
 
-                let ix = x as i8;
-                let iy = y as i8;
+                let [ix, iy] = [x as i8, y as i8];
 
                 let dirs = [-1, 0, 1];
                 let mut mine_count = 0;
 
                 for dx in dirs {
                     for dy in dirs {
-                        if !(dx == 0 && dy == 0) {
-                            if ix + dx >= 0
-                                && ix + dx < (width as i8)
-                                && iy + dy >= 0
-                                && iy + dy < (height as i8)
-                            {
-                                if grid[(iy + dy) as usize][(ix + dx) as usize].mine {
-                                    mine_count += 1;
-                                }
+                        if !(dx == 0 && dy == 0) && self.in_bounds(ix + dx, iy + dy) {
+                            if grid[(iy + dy) as usize][(ix + dx) as usize].mine {
+                                mine_count += 1;
                             }
                         }
                     }

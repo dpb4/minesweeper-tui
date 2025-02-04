@@ -37,15 +37,15 @@ fn main() -> Result<()> {
 #[derive(Debug)]
 pub struct App {
     board: minesweeper::Board,
-    cursor: (usize, usize),
     start_time: Instant,
-    exit: bool,
+    cursor: (usize, usize),
     state: GameState,
+    prev_state: Option<GameState>,
+    restart: bool,
+    quit: bool,
     option_menu: OptionMenu,
     lose_menu: LoseMenu,
     win_menu: WinMenu,
-    prev_state: Option<GameState>,
-    restart: Option<()>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -81,21 +81,21 @@ impl App {
                     DifficultyOption::Expert => 0.20,
                 } * (size.0 * size.1) as f32) as u32,
             ),
-            cursor: (size.0 / 2, size.1 / 2),
             start_time: Instant::now(),
-            exit: false,
+            cursor: (size.0 / 2, size.1 / 2),
             state: GameState::Start,
+            prev_state: None,
+            restart: false,
+            quit: false,
             option_menu: OptionMenu::new(options),
             lose_menu: Default::default(),
             win_menu: Default::default(),
-            prev_state: None,
-            restart: None,
         }
     }
 
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
-        while !self.exit {
-            if self.restart.is_some() {
+        while !self.quit {
+            if self.restart {
                 *self = Self::new(self.option_menu.state.clone(), terminal);
             }
             terminal.draw(|frame| self.draw(frame))?;
@@ -110,6 +110,7 @@ impl App {
             Constraint::Length((self.board.width * 2 - 1) as u16 + 8),
             Constraint::Length(self.board.height as u16 + 4),
         );
+
         frame.render_widget(self, frame_area_centered);
 
         if self.state == GameState::Options {
@@ -141,38 +142,29 @@ impl App {
                         GameState::Win => self.win_menu.handle_key_event(key_event),
                     }
 
-                    // TODO consistent names
-                    if self.option_menu.state.exit.is_some() || self.lose_menu.quit.is_some() {
-                        Self::exit(self);
-                    } else if self.option_menu.state.resume.is_some() {
-                        self.state = self.prev_state.clone().unwrap_or(GameState::Play);
-                        self.option_menu.state.resume = None;
-                    } else if self.option_menu.state.restart.is_some()
-                        || self.lose_menu.restart.is_some()
+                    if self.option_menu.state.quit || self.lose_menu.quit || self.win_menu.quit {
+                        self.quit();
+                    } else if self.option_menu.state.restart
+                        || self.lose_menu.restart
+                        || self.win_menu.restart
                     {
-                        self.option_menu.state.restart = None;
-                        self.restart = Some(());
-                    } else if self.lose_menu.options.is_some() {
-                        self.lose_menu.options = None;
+                        self.option_menu.state.restart = false;
+                        self.restart = true;
+                    } else if self.option_menu.state.resume {
+                        self.state = self.prev_state.clone().unwrap_or(GameState::Play);
+                        self.option_menu.state.resume = false;
+                    } else if self.lose_menu.options || self.win_menu.options {
+                        self.lose_menu.options = false;
+                        self.win_menu.options = false;
+                        // TODO maybe change this
                         self.handle_key_event(KeyEvent::new(
                             KeyCode::Char('o'),
                             KeyModifiers::empty(),
                         ));
-                    } else if self.lose_menu.coward.is_some() {
-                        self.lose_menu.coward = None;
+                    } else if self.lose_menu.coward {
+                        self.lose_menu.coward = false;
                         self.board.undo(self.cursor.0, self.cursor.1);
                         self.state = GameState::Play;
-                    } else if self.win_menu.options.is_some() {
-                        self.win_menu.options = None;
-                        self.handle_key_event(KeyEvent::new(
-                            KeyCode::Char('o'),
-                            KeyModifiers::empty(),
-                        ));
-                    } else if self.win_menu.restart.is_some() {
-                        self.restart = Some(());
-                        //TODO refactor options to booleans
-                    } else if self.win_menu.quit.is_some() {
-                        self.exit();
                     }
                 }
             }
@@ -182,11 +174,11 @@ impl App {
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
-            KeyCode::Char('q') | KeyCode::Char('Q') => self.exit(),
             KeyCode::Left => self.move_cursor(-1, 0),
             KeyCode::Right => self.move_cursor(1, 0),
             KeyCode::Up => self.move_cursor(0, -1),
             KeyCode::Down => self.move_cursor(0, 1),
+            KeyCode::Char('q') | KeyCode::Char('Q') => self.quit(),
             KeyCode::Char('x') | KeyCode::Char('X') => {
                 if self.state == GameState::Start {
                     self.state = GameState::Play;
@@ -231,8 +223,8 @@ impl App {
         }
     }
 
-    fn exit(&mut self) {
-        self.exit = true;
+    fn quit(&mut self) {
+        self.quit = true;
     }
 
     fn styled_board(&self) -> Vec<Line<'_>> {
@@ -300,7 +292,7 @@ impl App {
 }
 
 fn number_colors(n: u8) -> Color {
-    // this is a fn because color does not impliment Sized
+    // this is a fn because color does not implement Sized
     match n {
         1 => Color::Indexed(39),
         2 => Color::Indexed(48),

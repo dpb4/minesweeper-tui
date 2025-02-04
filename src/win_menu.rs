@@ -10,17 +10,17 @@ use ratatui::{
 #[derive(Debug, Clone, Default)]
 pub struct WinMenu {
     pub time: u64,
-    pub restart: Option<()>,
-    pub options: Option<()>,
-    pub quit: Option<()>,
+    pub restart: bool,
+    pub options: bool,
+    pub quit: bool,
 }
 
 impl WinMenu {
     pub fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
-            KeyCode::Char('q') | KeyCode::Char('Q') => self.quit = Some(()),
-            KeyCode::Char('o') | KeyCode::Char('O') => self.options = Some(()),
-            _ => self.restart = Some(()),
+            KeyCode::Char('q') | KeyCode::Char('Q') => self.quit = true,
+            KeyCode::Char('o') | KeyCode::Char('O') => self.options = true,
+            _ => self.restart = true,
         }
     }
 }
